@@ -8,6 +8,7 @@ A Python application for generating high-quality speech using the Gemini TTS mod
 - **Customizable Speech**: Select from various voices, scenes, and audio profiles to tailor the output.
 - **MP3 VBR Encoding**: Automatically intercepts raw PCM audio and encodes it to a space-efficient Variable Bitrate MP3.
 - **Dev Mode**: Offline testing support via a `.env` flag to bypass API calls.
+- **Persistent Settings**: Add and remove custom voices, scenes, and audio profiles directly in the GUI. These are saved to `settings.json` and persist between sessions.
 - **System Integration**: Native "Save As" dialog for file management.
 
 ## Installation

@@ -1,0 +1,22 @@
+{
+  "voices": [
+    "Charon",
+    "Aoede",
+    "Fenrir",
+    "Kore",
+    "Puck",
+    "Umbriel"
+  ],
+  "scenes": [
+    "A quiet buddhist temple.",
+    "A busy urban street.",
+    "A professional recording studio.",
+    "A cozy living room."
+  ],
+  "profiles": [
+    "The calm clear teaching voice of a Buddhist monk.",
+    "A fast-paced energetic podcast host.",
+    "A friendly conversational tone.",
+    "A deep dramatic narrator."
+  ]
+}

@@ -2,14 +2,20 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import threading
 import os
+import json
 from .tts_client import TTSClient
 from .audio_encoder import encode_vbr_mp3
+
+SETTINGS_FILE = "settings.json"
 
 class TTSApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Gemini TTS Studio")
-        self.root.geometry("600x700")
+        self.root.geometry("650x750")
+        
+        # Load settings
+        self.settings = self._load_settings()
         
         # Initialize TTS Client
         try:
@@ -20,6 +26,46 @@ class TTSApp:
             return
 
         self._setup_ui()
+
+    def _load_settings(self):
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, "r") as f:
+                return json.load(f)
+        return {
+            "voices": ["Charon", "Aoede", "Fenrir", "Kore", "Puck"],
+            "scenes": ["A quiet buddhist temple."],
+            "profiles": ["The calm clear teaching voice of a Buddhist monk."]
+        }
+
+    def _save_settings(self):
+        with open(SETTINGS_FILE, "w") as f:
+            json.dump(self.settings, f, indent=2)
+
+    def _add_option(self, combo, key):
+        value = combo.get().strip()
+        if value and value not in self.settings[key]:
+            self.settings[key].append(value)
+            self._save_settings()
+            combo['values'] = self.settings[key]
+            messagebox.showinfo("Success", f"Added '{value}' to {key}")
+        elif not value:
+            messagebox.showwarning("Warning", "Cannot add empty option")
+        else:
+            messagebox.showinfo("Info", "Option already exists")
+
+    def _remove_option(self, combo, key):
+        value = combo.get().strip()
+        if value in self.settings[key]:
+            if messagebox.askyesno("Confirm", f"Remove '{value}' from {key}?"):
+                self.settings[key].remove(value)
+                self._save_settings()
+                combo['values'] = self.settings[key]
+                if self.settings[key]:
+                    combo.set(self.settings[key][0])
+                else:
+                    combo.set("")
+        else:
+            messagebox.showwarning("Warning", "Option not found in list")
 
     def _setup_ui(self):
         main_frame = ttk.Frame(self.root, padding="10")
@@ -42,33 +88,31 @@ class TTSApp:
         options_frame = ttk.LabelFrame(main_frame, text="Settings", padding="10")
         options_frame.pack(fill=tk.X, pady=5)
 
-        # Voice
-        ttk.Label(options_frame, text="Voice:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.voice_combo = ttk.Combobox(options_frame, values=["Charon", "Aoede", "Fenrir", "Kore", "Puck"])
-        self.voice_combo.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
-        self.voice_combo.set("Charon")
+        # Helper to create row with +/- buttons
+        def create_option_row(parent, label, key, row):
+            ttk.Label(parent, text=f"{label}:").grid(row=row, column=0, sticky=tk.W, pady=5)
+            
+            combo = ttk.Combobox(parent, values=self.settings[key])
+            combo.grid(row=row, column=1, sticky=(tk.W, tk.E), padx=5)
+            if self.settings[key]:
+                combo.set(self.settings[key][0])
+            
+            btn_frame = ttk.Frame(parent)
+            btn_frame.grid(row=row, column=2, sticky=tk.W)
+            
+            add_btn = ttk.Button(btn_frame, text="+", width=3, 
+                                 command=lambda: self._add_option(combo, key))
+            add_btn.pack(side=tk.LEFT, padx=2)
+            
+            rem_btn = ttk.Button(btn_frame, text="-", width=3, 
+                                 command=lambda: self._remove_option(combo, key))
+            rem_btn.pack(side=tk.LEFT, padx=2)
+            
+            return combo
 
-        # Scene
-        ttk.Label(options_frame, text="Scene:").grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.scene_combo = ttk.Combobox(options_frame, values=[
-            "A quiet buddhist temple.",
-            "A busy urban street.",
-            "A professional recording studio.",
-            "A cozy living room."
-        ])
-        self.scene_combo.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=5)
-        self.scene_combo.set("A quiet buddhist temple.")
-
-        # Audio Profile
-        ttk.Label(options_frame, text="Audio Profile:").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.profile_combo = ttk.Combobox(options_frame, values=[
-            "The calm clear teaching voice of a Buddhist monk.",
-            "A fast-paced energetic podcast host.",
-            "A friendly conversational tone.",
-            "A deep dramatic narrator."
-        ])
-        self.profile_combo.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=5)
-        self.profile_combo.set("The calm clear teaching voice of a Buddhist monk.")
+        self.voice_combo = create_option_row(options_frame, "Voice", "voices", 0)
+        self.scene_combo = create_option_row(options_frame, "Scene", "scenes", 1)
+        self.profile_combo = create_option_row(options_frame, "Audio Profile", "profiles", 2)
 
         options_frame.columnconfigure(1, weight=1)
 
