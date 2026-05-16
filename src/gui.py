@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import threading
 import os
 from .tts_client import TTSClient
@@ -27,9 +27,16 @@ class TTSApp:
 
         # Transcript
         ttk.Label(main_frame, text="Transcript:", font=("Helvetica", 10, "bold")).pack(anchor=tk.W)
-        self.text_area = tk.Text(main_frame, height=10, wrap=tk.WORD)
+        
+        # Using a font that is more likely to support Unicode/Thai on Linux
+        self.text_area = tk.Text(main_frame, height=10, wrap=tk.WORD, font=("Helvetica", 12))
         self.text_area.pack(fill=tk.BOTH, expand=True, pady=(5, 10))
         self.text_area.insert(tk.END, "Enter text here...")
+        
+        # Placeholder behavior
+        self.text_area.bind("<FocusIn>", self._on_text_focus)
+        self.text_area.bind("<FocusOut>", self._on_text_blur)
+        self.text_area.config(foreground="grey")
 
         # Options Frame
         options_frame = ttk.LabelFrame(main_frame, text="Settings", padding="10")
@@ -112,17 +119,8 @@ class TTSApp:
             self._update_status("Encoding MP3...")
             mp3_data = encode_vbr_mp3(all_pcm, sample_rate)
             
-            # Find a unique filename
-            i = 0
-            while os.path.exists(f"output_{i}.mp3"):
-                i += 1
-            filename = f"output_{i}.mp3"
-            
-            with open(filename, "wb") as f:
-                f.write(mp3_data)
-            
-            self._update_status(f"Saved to {filename}")
-            messagebox.showinfo("Success", f"Audio saved to {filename}")
+            self._update_status("Ready to save.")
+            self.root.after(0, lambda: self._save_audio(mp3_data))
 
         except Exception as e:
             self._update_status(f"Error: {str(e)}")
@@ -130,9 +128,38 @@ class TTSApp:
         finally:
             self.root.after(0, self._cleanup_gen)
 
+    def _save_audio(self, data):
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".mp3",
+            filetypes=[("MP3 files", "*.mp3"), ("All files", "*.*")],
+            initialfile="tts_output.mp3",
+            title="Save Generated Audio"
+        )
+        
+        if filename:
+            try:
+                with open(filename, "wb") as f:
+                    f.write(data)
+                self._update_status(f"Saved to {os.path.basename(filename)}")
+                messagebox.showinfo("Success", f"Audio saved successfully!")
+            except Exception as e:
+                messagebox.showerror("Save Error", f"Could not save file: {e}")
+        else:
+            self._update_status("Save cancelled.")
+
     def _cleanup_gen(self):
         self.gen_btn.config(state=tk.NORMAL)
         self.progress.stop()
 
     def _update_status(self, text):
         self.root.after(0, lambda: self.status_var.set(text))
+
+    def _on_text_focus(self, event):
+        if self.text_area.get("1.0", tk.END).strip() == "Enter text here...":
+            self.text_area.delete("1.0", tk.END)
+            self.text_area.config(foreground="black")
+
+    def _on_text_blur(self, event):
+        if not self.text_area.get("1.0", tk.END).strip():
+            self.text_area.insert("1.0", "Enter text here...")
+            self.text_area.config(foreground="grey")

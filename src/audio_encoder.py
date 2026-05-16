@@ -14,7 +14,7 @@ def encode_vbr_mp3(pcm_data: bytes, sample_rate: int, channels: int = 1, quality
     encoder.set_channels(channels)
     encoder.set_in_sample_rate(sample_rate)
     encoder.set_out_sample_rate(sample_rate)
-    encoder.set_vbr(True)
+    encoder.set_vbr(lameenc.VBR_MTRH)
     encoder.set_vbr_quality(quality)
     encoder.silence()
     

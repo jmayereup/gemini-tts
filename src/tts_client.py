@@ -5,9 +5,16 @@ from google.genai import types
 class TTSClient:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
-        if not self.api_key:
+        self.dev_mode = os.environ.get("DEV_MODE", "False").lower() == "true"
+        
+        if not self.dev_mode and not self.api_key:
             raise ValueError("GEMINI_API_KEY not found in environment")
-        self.client = genai.Client(api_key=self.api_key)
+        
+        if not self.dev_mode:
+            self.client = genai.Client(api_key=self.api_key)
+        else:
+            self.client = None
+            
         self.model = "gemini-2.5-flash-preview-tts"
 
     def generate_audio_stream(self, text, voice="Charon", scene=None, audio_profile=None):
@@ -15,6 +22,11 @@ class TTSClient:
         Generates audio using the Gemini TTS model.
         Yields (raw_audio_data, sample_rate) for each chunk.
         """
+        if self.dev_mode:
+            # Yield 2 seconds of silence (raw PCM 16-bit mono 24000Hz)
+            # 24000 samples/sec * 2 bytes/sample * 2 sec = 96000 bytes
+            yield b'\x00' * 96000, 24000
+            return
         # Construct the prompt
         prompt_parts = ["Read the following transcript based on the audio profile.\n"]
         
