@@ -18,5 +18,6 @@
     "A fast-paced energetic podcast host.",
     "A friendly conversational tone.",
     "A deep dramatic narrator."
-  ]
+  ],
+  "default_save_path": "/home/jmayer/Music"
 }

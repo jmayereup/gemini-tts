@@ -28,14 +28,24 @@ class TTSApp:
         self._setup_ui()
 
     def _load_settings(self):
-        if os.path.exists(SETTINGS_FILE):
-            with open(SETTINGS_FILE, "r") as f:
-                return json.load(f)
-        return {
+        default_settings = {
             "voices": ["Charon", "Aoede", "Fenrir", "Kore", "Puck"],
             "scenes": ["A quiet buddhist temple."],
-            "profiles": ["The calm clear teaching voice of a Buddhist monk."]
+            "profiles": ["The calm clear teaching voice of a Buddhist monk."],
+            "default_save_path": os.getcwd()
         }
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, "r") as f:
+                try:
+                    settings = json.load(f)
+                    # Ensure all keys exist
+                    for key, value in default_settings.items():
+                        if key not in settings:
+                            settings[key] = value
+                    return settings
+                except json.JSONDecodeError:
+                    return default_settings
+        return default_settings
 
     def _save_settings(self):
         with open(SETTINGS_FILE, "w") as f:
@@ -71,8 +81,16 @@ class TTSApp:
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Transcript
-        ttk.Label(main_frame, text="Transcript:", font=("Helvetica", 10, "bold")).pack(anchor=tk.W)
+        # Header Frame
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 5))
+
+        # Transcript Label
+        ttk.Label(header_frame, text="Transcript:", font=("Helvetica", 10, "bold")).pack(side=tk.LEFT)
+        
+        # Settings Button
+        settings_btn = ttk.Button(header_frame, text="⚙ Settings", width=12, command=self._open_settings_dialog)
+        settings_btn.pack(side=tk.RIGHT)
         
         # Using a font that is more likely to support Unicode/Thai on Linux
         self.text_area = tk.Text(main_frame, height=10, wrap=tk.WORD, font=("Helvetica", 12))
@@ -173,9 +191,14 @@ class TTSApp:
             self.root.after(0, self._cleanup_gen)
 
     def _save_audio(self, data):
+        initial_dir = self.settings.get("default_save_path")
+        if not initial_dir or not os.path.exists(initial_dir):
+            initial_dir = os.getcwd()
+
         filename = filedialog.asksaveasfilename(
             defaultextension=".mp3",
             filetypes=[("MP3 files", "*.mp3"), ("All files", "*.*")],
+            initialdir=initial_dir,
             initialfile="tts_output.mp3",
             title="Save Generated Audio"
         )
@@ -207,3 +230,54 @@ class TTSApp:
         if not self.text_area.get("1.0", tk.END).strip():
             self.text_area.insert("1.0", "Enter text here...")
             self.text_area.config(foreground="grey")
+
+    def _open_settings_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Settings")
+        dialog.geometry("500x220")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (dialog.winfo_width() // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+
+        frame = ttk.Frame(dialog, padding="20")
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="Default Save Location:", font=("Helvetica", 10, "bold")).pack(anchor=tk.W, pady=(0, 5))
+        
+        path_frame = ttk.Frame(frame)
+        path_frame.pack(fill=tk.X, pady=5)
+        
+        path_var = tk.StringVar(value=self.settings.get("default_save_path", ""))
+        path_entry = ttk.Entry(path_frame, textvariable=path_var)
+        path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        
+        def browse_path():
+            directory = filedialog.askdirectory(parent=dialog, initialdir=path_var.get() or os.getcwd())
+            if directory:
+                path_var.set(directory)
+                
+        browse_btn = ttk.Button(path_frame, text="Browse...", command=browse_path)
+        browse_btn.pack(side=tk.RIGHT)
+        
+        ttk.Label(frame, text="Generated files will start in this folder by default.", 
+                  font=("Helvetica", 8), foreground="grey").pack(anchor=tk.W, pady=(0, 10))
+
+        def save_and_close():
+            new_path = path_var.get().strip()
+            if new_path and not os.path.exists(new_path):
+                if not messagebox.askyesno("Warning", "The path does not exist. Save anyway?", parent=dialog):
+                    return
+            
+            self.settings["default_save_path"] = new_path
+            self._save_settings()
+            messagebox.showinfo("Success", "Settings saved!", parent=dialog)
+            dialog.destroy()
+            
+        save_btn = ttk.Button(frame, text="Save Settings", command=save_and_close)
+        save_btn.pack(pady=10)
