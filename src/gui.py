@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import threading
 import os
 import json
+import re
 from .tts_client import TTSClient
 from .audio_encoder import encode_vbr_mp3
 
@@ -147,6 +148,50 @@ class TTSApp:
         self.gen_btn = ttk.Button(main_frame, text="Generate MP3", command=self.on_generate)
         self.gen_btn.pack(pady=10)
 
+    def _split_text(self, text, limit=1000):
+        """Splits text into chunks of max limit characters, respecting paragraphs."""
+        paragraphs = text.split('\n')
+        chunks = []
+        current_chunk = ""
+        
+        for p in paragraphs:
+            p = p.strip()
+            if not p:
+                continue
+            
+            # If adding this paragraph exceeds limit
+            if len(current_chunk) + len(p) + 1 > limit:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                    current_chunk = ""
+                
+                # If the paragraph itself is too long, split it by sentence or length
+                if len(p) > limit:
+                    # Split by common sentence enders or just spaces
+                    sentences = re.split(r'([。\.!\?\s]+)', p)
+                    temp_chunk = ""
+                    for s in sentences:
+                        if not s: continue
+                        if len(temp_chunk) + len(s) > limit:
+                            if temp_chunk:
+                                chunks.append(temp_chunk)
+                            temp_chunk = s
+                        else:
+                            temp_chunk += s
+                    current_chunk = temp_chunk
+                else:
+                    current_chunk = p
+            else:
+                if current_chunk:
+                    current_chunk += "\n" + p
+                else:
+                    current_chunk = p
+                    
+        if current_chunk:
+            chunks.append(current_chunk)
+            
+        return chunks
+
     def on_generate(self):
         text = self.text_area.get("1.0", tk.END).strip()
         if not text:
@@ -170,9 +215,16 @@ class TTSApp:
             all_pcm = b""
             sample_rate = 24000
             
-            for chunk_data, rate in self.client.generate_audio_stream(text, voice, scene, profile):
-                all_pcm += chunk_data
-                sample_rate = rate
+            chunks = self._split_text(text)
+            num_chunks = len(chunks)
+            
+            for i, chunk in enumerate(chunks):
+                if num_chunks > 1:
+                    self._update_status(f"Generating part {i+1}/{num_chunks}...")
+                
+                for chunk_data, rate in self.client.generate_audio_stream(chunk, voice, scene, profile):
+                    all_pcm += chunk_data
+                    sample_rate = rate
             
             if not all_pcm:
                 self._update_status("No audio generated.")
