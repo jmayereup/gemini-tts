@@ -28,7 +28,10 @@ class TTSClient:
             yield b'\x00' * 96000, 24000
             return
         # Construct the prompt
-        prompt_parts = ["Read the following transcript based on the audio profile.\n"]
+        prompt_parts = [
+            f"System Instruction: You must only use the {voice} preset. Do not alter the timbre, accent, or pitch across generations.\n\n",
+            "Read the following transcript based on the audio profile.\n"
+        ]
         
         if audio_profile:
             prompt_parts.append(f"\n# Audio Profile\n{audio_profile}\n")
