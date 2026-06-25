@@ -16,6 +16,8 @@ A Python application for generating high-quality speech using the Gemini TTS mod
 ### Prerequisites
 
 - Python 3.10+
+- `tkinter` GUI support
+  - On Linux, install the system package if needed: `sudo apt install python3-tk`
 - A Gemini API Key from [Google AI Studio](https://aistudio.google.com/)
 
 ### Setup

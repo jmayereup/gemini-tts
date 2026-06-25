@@ -1,3 +1,4 @@
 google-genai
 lameenc
 python-dotenv
+need
